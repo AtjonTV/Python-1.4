@@ -12,15 +12,7 @@
 static object *crypt_crypt(self, args)
 	object *self, *args;
 {
-	char *word, *salt; 
-	extern char * crypt();
-
-	struct passwd *p;
-	if (!getargs(args, "(ss)", &word, &salt)) {
-		return NULL;
-	}
-	return newstringobject( crypt( word, salt ) );
-
+	return NULL;
 }
 
 static struct methodlist crypt_methods[] = {
