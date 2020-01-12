@@ -416,76 +416,6 @@ file_read(f, args)
 	return v;
 }
 
-/* Internal routine to get a line.
-   Size argument interpretation:
-   > 0: max length;
-   = 0: read arbitrary line;
-   < 0: strip trailing '\n', raise EOFError if EOF reached immediately
-*/
-
-static object *
-getline(f, n)
-	fileobject *f;
-	int n;
-{
-	register FILE *fp;
-	register int c;
-	register char *buf, *end;
-	int n1, n2;
-	object *v;
-
-	fp = f->f_fp;
-	n2 = n > 0 ? n : 100;
-	v = newsizedstringobject((char *)NULL, n2);
-	if (v == NULL)
-		return NULL;
-	buf = BUF(v);
-	end = buf + n2;
-
-	BGN_SAVE
-	for (;;) {
-		if ((c = getc(fp)) == EOF) {
-			clearerr(fp);
-			if (sigcheck()) {
-				RET_SAVE
-				DECREF(v);
-				return NULL;
-			}
-			if (n < 0 && buf == BUF(v)) {
-				RET_SAVE
-				DECREF(v);
-				err_setstr(EOFError,
-					   "EOF when reading a line");
-				return NULL;
-			}
-			break;
-		}
-		if ((*buf++ = c) == '\n') {
-			if (n < 0)
-				buf--;
-			break;
-		}
-		if (buf == end) {
-			if (n > 0)
-				break;
-			n1 = n2;
-			n2 += 1000;
-			RET_SAVE
-			if (resizestring(&v, n2) < 0)
-				return NULL;
-			RES_SAVE
-			buf = BUF(v) + n1;
-			end = BUF(v) + n2;
-		}
-	}
-	END_SAVE
-
-	n1 = buf - BUF(v);
-	if (n1 != n2)
-		resizestring(&v, n1);
-	return v;
-}
-
 /* External C interface */
 
 object *
@@ -545,7 +475,7 @@ filegetline(f, n)
 	}
 	if (((fileobject*)f)->f_fp == NULL)
 		return err_closed();
-	return getline((fileobject *)f, n);
+	return getline((fileobject *)f, n, NULL);
 }
 
 /* Python method */
@@ -570,7 +500,7 @@ file_readline(f, args)
 			n = 0;
 	}
 
-	return getline(f, n);
+	return getline(f, n, NULL);
 }
 
 static object *
@@ -588,7 +518,7 @@ file_readlines(f, args)
 	if ((list = newlistobject(0)) == NULL)
 		return NULL;
 	for (;;) {
-		line = getline(f, 0);
+		line = getline(f, 0, NULL);
 		if (line != NULL && getstringsize(line) == 0) {
 			DECREF(line);
 			break;
